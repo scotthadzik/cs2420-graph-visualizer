@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dijkstra's vs Prim's Visualizer &middot; CS 2420</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #f5f5f5;
+      color: #2c3e50;
+    }
+
+    .app {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    /* ===== Header ===== */
+    header {
+      background: linear-gradient(135deg, #3d1d5e 0%, #4f2677 50%, #5e2d91 100%);
+      color: #fff;
+      border-radius: 12px;
+      padding: 18px 24px;
+      margin-bottom: 14px;
+    }
+    header .eyebrow {
+      font-size: 0.72rem;
+      opacity: 0.85;
+      margin-bottom: 4px;
+    }
+    header h1 {
+      margin: 0 0 10px;
+      font-size: 1.4rem;
+      line-height: 1.2;
+    }
+    .algo-toggle {
+      display: inline-flex;
+      background: rgba(255,255,255,0.15);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .algo-toggle button {
+      background: transparent;
+      color: #fff;
+      border: none;
+      padding: 8px 18px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .algo-toggle button:hover {
+      background: rgba(255,255,255,0.15);
+    }
+    .algo-toggle button.active {
+      background: #fff;
+      color: #4f2677;
+    }
+
+    /* ===== Main grid ===== */
+    main {
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    .graph-panel {
+      background: #fff;
+      border-radius: 10px;
+      padding: 14px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    #graph-svg {
+      display: block;
+      width: 100%;
+      height: auto;
+      max-height: 420px;
+    }
+    .step-description {
+      margin-top: 12px;
+      padding: 10px 14px;
+      background: #eaf2f8;
+      border-left: 4px solid #2980b9;
+      border-radius: 6px;
+      font-size: 0.88rem;
+      line-height: 1.45;
+      color: #2c3e50;
+      min-height: 48px;
+    }
+    .step-description .step-title {
+      font-weight: 700;
+    }
+    .step-description .step-details {
+      margin: 6px 0 0;
+      padding-left: 22px;
+      list-style: disc;
+      font-size: 0.82rem;
+      line-height: 1.55;
+      color: #34495e;
+      font-family: Consolas, 'Courier New', monospace;
+    }
+    .step-description .step-details li {
+      margin: 2px 0;
+    }
+    .step-description.stale {
+      background: #fef9e7;
+      border-left-color: #e67e22;
+    }
+    .step-description.done {
+      background: #eafaf1;
+      border-left-color: #27ae60;
+      font-weight: 600;
+    }
+
+    /* ===== Info panel (heap + state) ===== */
+    .info-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .info-panel > section {
+      background: #fff;
+      border-radius: 10px;
+      padding: 12px 14px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .info-panel h3 {
+      margin: 0 0 8px;
+      font-size: 0.85rem;
+      color: #555;
+      font-weight: 700;
+      font-family: Consolas, 'Courier New', monospace;
+    }
+
+    .step-counter {
+      background: #fff;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 0.82rem;
+      color: #555;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .step-counter strong {
+      color: #2c3e50;
+      font-size: 1rem;
+    }
+
+    #heap-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    #heap-list li {
+      font-family: Consolas, 'Courier New', monospace;
+      font-size: 0.82rem;
+      padding: 5px 10px;
+      background: #eaf2f8;
+      border-left: 3px solid #2980b9;
+      border-radius: 4px;
+      color: #2c3e50;
+    }
+    #heap-list li.stale {
+      background: #fef9e7;
+      border-left-color: #e67e22;
+      color: #e67e22;
+      text-decoration: line-through;
+    }
+    #heap-list li.selected {
+      background: #fff3cd;
+      border-left: 4px solid #d35400;
+      color: #d35400;
+      font-weight: 700;
+      text-decoration: none;
+      animation: pulse-highlight 0.6s ease-out;
+    }
+    #heap-list li.empty {
+      background: #f5f5f5;
+      border-left-color: #bdc3c7;
+      color: #999;
+      font-style: italic;
+      text-decoration: none;
+    }
+
+    .dist-table, .mst-list {
+      font-family: Consolas, 'Courier New', monospace;
+      font-size: 0.82rem;
+    }
+    .dist-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 5px 0;
+      border-bottom: 1px dashed #eee;
+    }
+    .dist-row:last-child { border-bottom: none; }
+    .dist-row .label-block {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.2;
+    }
+    .dist-row .label { color: #777; font-weight: 700; }
+    .dist-row .building-sub {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      font-size: 0.68rem;
+      font-style: italic;
+      font-weight: 400;
+      color: #8e44ad;
+    }
+    .dist-row .value { font-weight: 700; color: #2c3e50; }
+    .dist-row.finalized .label,
+    .dist-row.finalized .value { color: #27ae60; }
+    .dist-row.in-heap .label,
+    .dist-row.in-heap .value { color: #2980b9; }
+    .dist-row.unvisited .value { color: #bdc3c7; }
+    .dist-row.just-changed {
+      background: #fff3cd;
+      border-left: 4px solid #e67e22;
+      padding: 5px 8px;
+      margin: 0 -8px;
+      border-radius: 4px;
+      animation: pulse-highlight 0.6s ease-out;
+    }
+    .dist-row.just-changed .value {
+      color: #d35400 !important;
+      font-size: 0.95rem;
+    }
+    .dist-row.replaced-highlight {
+      background: #fde3e3;
+      border-left: 4px solid #c0392b;
+      padding: 5px 8px;
+      margin: 0 -8px;
+      border-radius: 4px;
+      animation: pulse-replaced 0.6s ease-out;
+    }
+    .dist-row.replaced-highlight .value {
+      color: #c0392b !important;
+      font-size: 0.95rem;
+    }
+    .dist-row.replaced-highlight .label {
+      color: #c0392b !important;
+    }
+    @keyframes pulse-highlight {
+      0%   { background: #ffeaa7; transform: scale(1.02); }
+      100% { background: #fff3cd; transform: scale(1); }
+    }
+    @keyframes pulse-replaced {
+      0%   { background: #ffb3b3; transform: scale(1.02); }
+      100% { background: #fde3e3; transform: scale(1); }
+    }
+
+    .mst-total {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 2px solid #27ae60;
+      font-family: Consolas, 'Courier New', monospace;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #27ae60;
+    }
+
+    /* ===== Path list ===== */
+    #path-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    #path-list li {
+      padding: 6px 0;
+      border-bottom: 1px dashed #eee;
+      font-size: 0.74rem;
+      line-height: 1.35;
+    }
+    #path-list li:last-child { border-bottom: none; }
+    #path-list .path-dest {
+      font-weight: 700;
+      color: #2c3e50;
+    }
+    #path-list .path-cost {
+      float: right;
+      font-family: Consolas, 'Courier New', monospace;
+      font-weight: 700;
+    }
+    #path-list .path-route {
+      display: block;
+      margin-top: 2px;
+      color: #777;
+      font-style: italic;
+    }
+    #path-list li.finalized .path-dest,
+    #path-list li.finalized .path-cost { color: #27ae60; }
+    #path-list li.in-heap .path-dest,
+    #path-list li.in-heap .path-cost { color: #2980b9; }
+    #path-list li.unvisited { color: #bdc3c7; }
+    #path-list li.unvisited .path-dest,
+    #path-list li.unvisited .path-cost { color: #bdc3c7; }
+    #path-list li.source .path-dest { color: #e67e22; }
+
+    /* ===== Controls ===== */
+    footer.controls {
+      background: #fff;
+      border-radius: 10px;
+      padding: 12px 16px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    footer.controls button {
+      background: #2980b9;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 14px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    footer.controls button:hover:not(:disabled) {
+      background: #21618c;
+    }
+    footer.controls button:disabled {
+      background: #bdc3c7;
+      cursor: not-allowed;
+    }
+    footer.controls button#btn-reset {
+      background: #95a5a6;
+    }
+    footer.controls button#btn-reset:hover {
+      background: #7f8c8d;
+    }
+    footer.controls button#btn-play.playing {
+      background: #e67e22;
+    }
+    footer.controls label {
+      margin-left: auto;
+      font-size: 0.82rem;
+      color: #555;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    footer.controls input[type="range"] {
+      width: 120px;
+    }
+
+    /* ===== Adjacency list (collapsible reference) ===== */
+    .adj-list-panel {
+      margin-top: 14px;
+      background: #fff;
+      border-radius: 10px;
+      padding: 12px 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .adj-list-panel summary {
+      cursor: pointer;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #555;
+      user-select: none;
+      outline: none;
+    }
+    .adj-list-panel summary:hover {
+      color: #2980b9;
+    }
+    .adj-list-panel[open] summary {
+      margin-bottom: 10px;
+      color: #2c3e50;
+    }
+    .adj-list-note {
+      margin: 0 0 10px;
+      font-size: 0.78rem;
+      color: #777;
+      line-height: 1.45;
+    }
+    .adj-list-note code {
+      font-family: Consolas, 'Courier New', monospace;
+      font-size: 0.75rem;
+      background: #f5f5f5;
+      padding: 1px 5px;
+      border-radius: 3px;
+      color: #2c3e50;
+    }
+    #adj-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 6px;
+    }
+    #adj-list li {
+      font-family: Consolas, 'Courier New', monospace;
+      font-size: 0.8rem;
+      padding: 6px 10px;
+      background: #f5f5f5;
+      border-left: 3px solid #bdc3c7;
+      border-radius: 4px;
+      color: #2c3e50;
+    }
+    #adj-list .vertex {
+      font-weight: 700;
+      color: #2980b9;
+    }
+    #adj-list .building-sub {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      font-size: 0.7rem;
+      font-style: italic;
+      color: #8e44ad;
+      margin: 0 4px;
+    }
+    #adj-list .arrow {
+      color: #999;
+      margin: 0 4px;
+    }
+
+    /* ===== Compare view ===== */
+    .compare-view {
+      background: #fff;
+      border-radius: 10px;
+      padding: 18px 20px;
+      margin-bottom: 14px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .compare-panels {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+    @media (max-width: 820px) {
+      .compare-panels { grid-template-columns: 1fr; }
+    }
+    .compare-half h3 {
+      margin: 0;
+      font-size: 0.98rem;
+      color: #2c3e50;
+      font-weight: 700;
+    }
+    .compare-half .compare-subtitle {
+      margin: 2px 0 10px;
+      font-size: 0.76rem;
+      color: #777;
+      font-style: italic;
+    }
+    .compare-half svg {
+      width: 100%;
+      height: auto;
+      max-height: 380px;
+      display: block;
+      border: 1px solid #eee;
+      border-radius: 6px;
+      background: #fafafa;
+    }
+    .compare-stats {
+      margin-top: 10px;
+      font-size: 0.82rem;
+      color: #555;
+      line-height: 1.55;
+    }
+    .compare-stats strong {
+      color: #27ae60;
+    }
+    .compare-diff {
+      margin-top: 16px;
+      padding: 14px 18px;
+      background: #fff3cd;
+      border-left: 4px solid #e67e22;
+      border-radius: 6px;
+      font-size: 0.88rem;
+      line-height: 1.55;
+      color: #2c3e50;
+    }
+    .compare-diff ul {
+      margin: 8px 0 8px 0;
+      padding-left: 20px;
+    }
+    .compare-diff li {
+      margin: 4px 0;
+    }
+    .compare-diff code {
+      font-family: Consolas, 'Courier New', monospace;
+      font-size: 0.82rem;
+      background: #fff;
+      padding: 1px 5px;
+      border-radius: 3px;
+      color: #d35400;
+    }
+
+    /* ===== Real-world scenarios panel (Compare tab) ===== */
+    .compare-realworld {
+      margin-top: 16px;
+      padding: 16px 20px;
+      background: #fef9e7;
+      border: 1px solid #f39c12;
+      border-radius: 10px;
+    }
+    .compare-realworld h3 {
+      margin: 0 0 4px;
+      font-size: 1rem;
+      color: #e67e22;
+      font-weight: 700;
+    }
+    .compare-realworld .realworld-subtitle {
+      margin: 0 0 14px;
+      font-size: 0.78rem;
+      color: #888;
+      font-style: italic;
+    }
+    .compare-realworld .realworld-columns {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      padding-bottom: 14px;
+      border-bottom: 1px dashed #f39c12;
+    }
+    @media (max-width: 760px) {
+      .compare-realworld .realworld-columns { grid-template-columns: 1fr; }
+    }
+    .compare-realworld .realworld-col h4 {
+      margin: 0 0 6px;
+      font-size: 0.9rem;
+      font-weight: 700;
+    }
+    .compare-realworld .realworld-dijkstra h4 { color: #2980b9; }
+    .compare-realworld .realworld-prims h4 { color: #27ae60; }
+    .compare-realworld .realworld-story {
+      margin: 0 0 8px;
+      font-size: 0.84rem;
+      color: #555;
+      font-style: italic;
+      line-height: 1.45;
+    }
+    .compare-realworld .realworld-answer {
+      margin: 0;
+      font-size: 0.84rem;
+      color: #2c3e50;
+      line-height: 1.55;
+    }
+    .compare-realworld code {
+      font-family: Consolas, 'Courier New', monospace;
+      background: #fff;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 0.78rem;
+      color: #d35400;
+      border: 1px solid #f5e4c3;
+    }
+    .compare-realworld .realworld-twist {
+      margin-top: 14px;
+      padding-bottom: 12px;
+      border-bottom: 1px dashed #f39c12;
+      font-size: 0.84rem;
+      line-height: 1.55;
+      color: #2c3e50;
+    }
+    .compare-realworld .realworld-twist > strong {
+      color: #e67e22;
+    }
+    .compare-realworld .realworld-twist p {
+      margin: 6px 0 0;
+    }
+    .compare-realworld .realworld-takeaway {
+      margin-top: 12px;
+      font-size: 0.84rem;
+      color: #2c3e50;
+      line-height: 1.55;
+    }
+    .compare-realworld .realworld-takeaway > strong {
+      color: #e67e22;
+    }
+    .compare-realworld .realworld-takeaway ul {
+      margin: 6px 0 0;
+      padding-left: 22px;
+    }
+    .compare-realworld .realworld-takeaway li {
+      margin: 2px 0;
+    }
+
+    /* ===== Campus map reference panel ===== */
+    .campus-map-panel {
+      margin-top: 14px;
+      background: #fff;
+      border-radius: 10px;
+      padding: 14px 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .campus-map-panel h3 {
+      margin: 0 0 6px;
+      font-size: 0.9rem;
+      color: #2c3e50;
+      font-weight: 700;
+    }
+    .campus-map-panel .campus-map-note {
+      margin: 0 0 12px;
+      font-size: 0.8rem;
+      color: #777;
+      line-height: 1.45;
+    }
+    .campus-map-panel img {
+      display: block;
+      width: 100%;
+      height: auto;
+      border-radius: 6px;
+      border: 1px solid #e0e0e0;
+    }
+
+    /* ===== Graph SVG node / edge styling ===== */
+    .node circle {
+      transition: fill 0.25s, stroke 0.25s;
+    }
+    .node text {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      font-size: 16px;
+      font-weight: bold;
+      fill: #2c3e50;
+      pointer-events: none;
+      user-select: none;
+    }
+    .node .dist-label {
+      font-size: 11px;
+      font-weight: bold;
+      paint-order: stroke;
+      stroke: #ffffff;
+      stroke-width: 3px;
+      stroke-linejoin: round;
+    }
+    .node .building-label {
+      font-size: 10px;
+      font-weight: 600;
+      font-style: italic;
+      fill: #8e44ad;
+      paint-order: stroke;
+      stroke: #ffffff;
+      stroke-width: 3px;
+      stroke-linejoin: round;
+    }
+    .edge line {
+      transition: stroke 0.25s, stroke-width 0.25s;
+    }
+    .edge-label rect {
+      transition: fill 0.25s, stroke 0.25s;
+    }
+    .edge-label text {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      font-size: 12px;
+      font-weight: bold;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    /* Responsive */
+    @media (max-width: 760px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="eyebrow">Weber State University &middot; Ogden Campus &middot; CS 2420 &middot; Module 8</div>
+      <h1>Dijkstra's vs Prim's &mdash; Step Through the Algorithm</h1>
+      <div class="algo-toggle" role="tablist">
+        <button id="algo-dijkstra" class="active" role="tab">Dijkstra's</button>
+        <button id="algo-prims" role="tab">Prim's</button>
+        <button id="algo-compare" role="tab">Compare</button>
+      </div>
+    </header>
+
+    <footer class="controls" id="footer-controls">
+      <button id="btn-reset" title="Reset to step 0">&#x21BA; Reset</button>
+      <button id="btn-back" title="Previous step">&#x25C0; Back</button>
+      <button id="btn-play" title="Auto-advance">&#x25B6; Play</button>
+      <button id="btn-step" title="Next step">Step &#x25B6;</button>
+      <label>Speed
+        <input type="range" id="speed-slider" min="1" max="10" value="5">
+      </label>
+    </footer>
+
+    <main id="main-view">
+      <div class="graph-panel">
+        <svg id="graph-svg" viewBox="0 0 640 440" xmlns="http://www.w3.org/2000/svg">
+          <g id="edges"></g>
+          <g id="edge-labels"></g>
+          <g id="nodes"></g>
+        </svg>
+        <div class="step-description" id="step-description">Loading...</div>
+      </div>
+
+      <aside class="info-panel">
+        <div class="step-counter">Step <strong id="step-num">0</strong> of <strong id="step-total">0</strong></div>
+
+        <section>
+          <h3>min-heap <span id="heap-note" style="font-weight: 400; font-size: 0.72rem; color: #999; font-family: 'Segoe UI', Arial, sans-serif;"></span></h3>
+          <ul id="heap-list"></ul>
+        </section>
+
+        <section id="state-section">
+          <h3 id="state-title">dist[]</h3>
+          <div id="state-content"></div>
+        </section>
+
+        <section id="path-section">
+          <h3 id="path-title">paths from source</h3>
+          <ul id="path-list"></ul>
+        </section>
+      </aside>
+    </main>
+
+    <section class="compare-view" id="compare-view" style="display: none;">
+      <div class="compare-panels">
+        <div class="compare-half">
+          <h3>Dijkstra&rsquo;s &mdash; Shortest Path Tree</h3>
+          <p class="compare-subtitle">Source: Noorda (A) &middot; minimizes distance from the source to every other vertex</p>
+          <svg id="compare-svg-dijkstra" viewBox="0 0 640 440" xmlns="http://www.w3.org/2000/svg"></svg>
+          <div class="compare-stats">
+            <strong>Tree edges:</strong> A&ndash;B(4), A&ndash;C(2), C&ndash;E(1), B&ndash;D(1)
+            <br><strong>Sum of edge weights:</strong> 8
+          </div>
+        </div>
+        <div class="compare-half">
+          <h3>Prim&rsquo;s &mdash; Minimum Spanning Tree</h3>
+          <p class="compare-subtitle">Start: Noorda (A) &middot; minimizes total edge weight across the whole tree</p>
+          <svg id="compare-svg-prims" viewBox="0 0 640 440" xmlns="http://www.w3.org/2000/svg"></svg>
+          <div class="compare-stats">
+            <strong>MST edges:</strong> A&ndash;C(2), B&ndash;C(3), C&ndash;E(1), B&ndash;D(1)
+            <br><strong>Total weight:</strong> 7
+          </div>
+        </div>
+      </div>
+      <div class="compare-diff">
+        <strong>Key difference:</strong> Both trees connect all 5 buildings and share 3 edges (A&ndash;C, C&ndash;E, B&ndash;D). They disagree on how to reach Engineering Tech (B):
+        <ul>
+          <li><strong>Dijkstra&rsquo;s</strong> uses <code>A&ndash;B(4)</code> &mdash; the direct edge &mdash; because that IS the shortest path from Noorda to Engineering Tech (the detour A&nbsp;&rarr;&nbsp;C&nbsp;&rarr;&nbsp;B would cost 2 + 3 = 5, worse).</li>
+          <li><strong>Prim&rsquo;s</strong> uses <code>B&ndash;C(3)</code> instead. It doesn&rsquo;t care about paths from the source &mdash; it just wants the cheapest edge that connects a new vertex. Swapping 4 for 3 saves 1 unit of total weight.</li>
+        </ul>
+        The trade-off: Prim&rsquo;s MST is lighter (7 vs 8), but the path from Noorda to Engineering Tech is now longer (2 + 3 = 5 instead of 4). Dijkstra&rsquo;s pays more total weight to guarantee every single path from the source is optimal.
+      </div>
+
+      <div class="compare-realworld">
+        <h3>&#x1F3EB; Real-World: Navigating Weber State Campus</h3>
+        <p class="realworld-subtitle">Vertices = buildings &nbsp;&middot;&nbsp; Edges = walking paths &nbsp;&middot;&nbsp; Weights = walking minutes</p>
+
+        <div class="realworld-columns">
+          <div class="realworld-col realworld-dijkstra">
+            <h4>Dijkstra&rsquo;s &mdash; &ldquo;Get me there fast&rdquo;</h4>
+            <p class="realworld-story">&ldquo;I&rsquo;m at my dorm. Chem class starts in Lind Lecture Hall at 9am. What&rsquo;s the fastest route?&rdquo;</p>
+            <p class="realworld-answer">&rarr; Run <code>dijkstra("dorm")</code>. Read off <code>dist["Lind"]</code> &mdash; that&rsquo;s your walking time, and the tree gives you the path.</p>
+          </div>
+          <div class="realworld-col realworld-prims">
+            <h4>Prim&rsquo;s &mdash; &ldquo;Connect everything cheaply&rdquo;</h4>
+            <p class="realworld-story">&ldquo;Facilities is running fiber-optic between every building on campus. What&rsquo;s the minimum cable length?&rdquo;</p>
+            <p class="realworld-answer">&rarr; Run <code>prims_mst("any_building")</code>. The MST edges are the cable runs; the total weight is the cable you&rsquo;ll buy.</p>
+          </div>
+        </div>
+
+        <div class="realworld-twist">
+          <strong>&#x2615; The Starbucks twist:</strong> &ldquo;Same trip, but I want to grab coffee at the Tracy Hall Starbucks on the way to chem class.&rdquo;
+          <p>&rarr; Still Dijkstra&rsquo;s &mdash; but run it <strong>twice</strong>: <code>dist["Tracy"]</code> from dorm, then <code>dist["Lind"]</code> from Tracy Hall, and sum them. Prim&rsquo;s MST can&rsquo;t answer this &mdash; the MST edges aren&rsquo;t necessarily the shortest routes between any two vertices.</p>
+        </div>
+
+        <div class="realworld-takeaway">
+          <strong>Mental model:</strong>
+          <ul>
+            <li>&ldquo;Fastest X &rarr; Y&rdquo; = Dijkstra&rsquo;s (one run)</li>
+            <li>&ldquo;Fastest X &rarr; stopover &rarr; Y&rdquo; = Dijkstra&rsquo;s (two runs, summed)</li>
+            <li>&ldquo;Connect all of these cheaply&rdquo; = Prim&rsquo;s</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <details class="adj-list-panel">
+      <summary>Adjacency list &mdash; the underlying data structure</summary>
+      <p class="adj-list-note">
+        This is the <code>unordered_map&lt;string, vector&lt;Edge&gt;&gt;</code> the algorithm actually queries. It doesn&rsquo;t change during the run &mdash; both Dijkstra&rsquo;s and Prim&rsquo;s just read from it when they ask for a vertex&rsquo;s neighbors.
+      </p>
+      <ul id="adj-list"></ul>
+    </details>
+
+    <section class="campus-map-panel">
+      <h3>Weber State campus map</h3>
+      <p class="campus-map-note">
+        Each node in the graph corresponds to a real building on campus. Use this map to picture the routes Dijkstra&rsquo;s and Prim&rsquo;s explore as you step through the algorithm.
+      </p>
+      <img src="campus__map.png" alt="Weber State University campus map showing the buildings referenced by the graph nodes: Noorda, Engineering Tech, Tracy Hall, Marriott Allied Health, and Stewart Library (Book Museum)">
+    </section>
+  </div>
+
+  <script src="algorithms.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
